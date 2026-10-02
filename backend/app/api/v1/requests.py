@@ -1,10 +1,11 @@
 import math
 from typing import List, Optional
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from pydantic import BaseModel
 
 from app.core.exceptions import BadRequestException
 from app.schemas.common import PaginatedResponse
+from app.schemas.import_requests import ImportRequestsResult
 from app.schemas.request import (
     PickupRequestCreate,
     PickupRequestDetailResponse,
@@ -119,6 +120,21 @@ async def get_nearby_requests(
         statuses=status,
     )
     return [NearbyRequestItem(request=r, distance_meters=d) for r, d in results]
+
+
+@router.post(
+    "/import",
+    response_model=ImportRequestsResult,
+    summary="Bulk import requests from CSV",
+    description="Upload a CSV file or payload containing pickup requests (lat, lng, waste_type, volume, address, description).",
+)
+async def import_pickup_requests_csv(
+    file: UploadFile = File(..., description="CSV file with columns: latitude,longitude,waste_type,volume,..."),
+    service: RequestService = Depends(get_request_service),
+):
+    contents = await file.read()
+    csv_text = contents.decode("utf-8-sig")
+    return await service.import_from_csv(csv_text)
 
 
 @router.get(

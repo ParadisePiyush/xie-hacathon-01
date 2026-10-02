@@ -60,3 +60,15 @@ class RequestRepository(BaseRepository[PickupRequestResponse]):
     ) -> int:
         """Counts other open/active requests within radius for repeat report factor."""
         pass
+
+    @abstractmethod
+    async def find_duplicate_candidate(
+        self,
+        latitude: float,
+        longitude: float,
+        waste_type: WasteType,
+        radius_meters: float = 50.0,
+        max_age_hours: float = 24.0,
+    ) -> Optional[PickupRequestResponse]:
+        """Finds open request of identical waste type within proximity and age window."""
+        pass

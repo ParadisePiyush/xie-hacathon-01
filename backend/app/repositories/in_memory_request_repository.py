@@ -1,6 +1,6 @@
 import asyncio
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
 from app.repositories.request_repository import RequestRepository
@@ -209,6 +209,56 @@ class InMemoryRequestRepository(RequestRepository):
                 if dist <= radius_meters:
                     count += 1
         return count
+
+    async def find_duplicate_candidate(
+        self,
+        latitude: float,
+        longitude: float,
+        waste_type: WasteType,
+        radius_meters: float = 50.0,
+        max_age_hours: float = 24.0,
+    ) -> Optional[PickupRequestResponse]:
+        open_statuses = {
+            RequestStatus.SUBMITTED,
+            RequestStatus.VERIFIED,
+            RequestStatus.PLANNED,
+            RequestStatus.IN_PROGRESS,
+            RequestStatus.SKIPPED,
+        }
+        async with self._lock:
+            reqs = list(self._requests.values())
+
+        now = datetime.now(timezone.utc)
+        candidates = []
+
+        for r in reqs:
+            if r.status not in open_statuses:
+                continue
+            if r.waste_type != waste_type:
+                continue
+            if r.duplicate_of is not None:
+                continue  # link to the root parent
+
+            created = r.created_at
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+
+            age_hours = (now - created).total_seconds() / 3600.0
+            if age_hours > max_age_hours:
+                continue
+
+            dist = haversine_distance_meters(latitude, longitude, r.latitude, r.longitude)
+            if dist <= radius_meters:
+                candidates.append((r, dist))
+
+        if candidates:
+            # Sort by closest distance first
+            candidates.sort(key=lambda x: x[1])
+            best_candidate = candidates[0][0]
+            history = self._histories.get(best_candidate.id, [])
+            return best_candidate.model_copy(update={"history": list(history)})
+
+        return None
 
 
 # Singleton instance for in-memory Phase 1

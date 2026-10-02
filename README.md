@@ -58,7 +58,7 @@ Build order: **Backend → Database → Frontend → Auth**, then optimization a
 ### Progress Tracker
 
 - [x] Phase 1 – Backend foundation
-- [ ] Phase 2 – Database and geospatial
+- [x] Phase 2 – Database and geospatial
 - [ ] Phase 3 – Frontend map and requests
 - [ ] Phase 4 – Route optimization and dispatch
 - [ ] Phase 5 – Authentication and authorization
