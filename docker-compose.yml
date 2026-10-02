@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: waste_optimizer_api
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - HOST=0.0.0.0
+      - DEBUG=true
+      - DATABASE_URL=postgresql+psycopg://waste:waste@db:5432/waste_db
+      - SECRET_KEY=temporary-secret-key-change-in-production
+      - OSRM_URL=https://router.project-osrm.org
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/app:/app/app
+    restart: unless-stopped
+
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: waste_optimizer_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: waste
+      POSTGRES_PASSWORD: waste
+      POSTGRES_DB: waste_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U waste -d waste_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
