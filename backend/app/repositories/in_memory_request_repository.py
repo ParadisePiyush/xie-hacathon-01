@@ -89,6 +89,10 @@ class InMemoryRequestRepository(RequestRepository):
         async with self._lock:
             return list(self._histories.get(request_id, []))
 
+    async def list_all(self) -> List[PickupRequestResponse]:
+        async with self._lock:
+            return list(self._requests.values())
+
     async def list_requests(
         self,
         status: Optional[RequestStatus] = None,

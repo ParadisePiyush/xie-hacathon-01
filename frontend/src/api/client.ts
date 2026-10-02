@@ -1,7 +1,9 @@
 import type {
+  AnalyticsSummary,
   AuditLog,
   AuthResponse,
   Depot,
+  HeatmapPoint,
   LoginCredentials,
   PaginatedResponse,
   PickupRequest,
@@ -14,6 +16,8 @@ import type {
   Route,
   RouteStop,
   RouteStopCompleteRequest,
+  SystemNotification,
+  TeamProductivity,
   User,
   Vehicle,
   Zone,
@@ -253,5 +257,26 @@ export const apiClient = {
 
   async getAuditLogs(limit = 100): Promise<AuditLog[]> {
     return request<AuditLog[]>(`/audit-logs?limit=${limit}`);
+  },
+
+  // Analytics & Realtime (Phase 6)
+  async getAnalyticsSummary(): Promise<AnalyticsSummary> {
+    return request<AnalyticsSummary>('/analytics/summary');
+  },
+
+  async getHeatmapPoints(): Promise<HeatmapPoint[]> {
+    return request<HeatmapPoint[]>('/analytics/heatmap');
+  },
+
+  async getTeamProductivity(): Promise<TeamProductivity[]> {
+    return request<TeamProductivity[]>('/analytics/teams');
+  },
+
+  async getNotifications(): Promise<SystemNotification[]> {
+    return request<SystemNotification[]>('/analytics/notifications');
+  },
+
+  getExportUrl(): string {
+    return `${API_BASE}/analytics/export`;
   },
 };

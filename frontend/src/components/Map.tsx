@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import type { Depot, PickupRequest, Plan, Zone } from '../api/types';
 
@@ -38,7 +38,10 @@ export const Map: React.FC<MapProps> = ({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const routesLayerRef = useRef<L.LayerGroup | null>(null);
+  const heatmapLayerRef = useRef<L.LayerGroup | null>(null);
   const droppedPinMarkerRef = useRef<L.Marker | null>(null);
+
+  const [isHeatmapMode, setIsHeatmapMode] = useState(false);
 
   // Initialize Map
   useEffect(() => {
@@ -57,8 +60,10 @@ export const Map: React.FC<MapProps> = ({
 
     const routesGroup = L.layerGroup().addTo(map);
     const markersGroup = L.layerGroup().addTo(map);
+    const heatmapGroup = L.layerGroup().addTo(map);
     routesLayerRef.current = routesGroup;
     markersLayerRef.current = markersGroup;
+    heatmapLayerRef.current = heatmapGroup;
     mapInstanceRef.current = map;
 
     map.on('click', (e: L.LeafletMouseEvent) => {
@@ -261,15 +266,70 @@ export const Map: React.FC<MapProps> = ({
     }
   }, [droppedPin]);
 
+  // Heatmap rendering effect
+  useEffect(() => {
+    const heatGroup = heatmapLayerRef.current;
+    if (!heatGroup) return;
+
+    heatGroup.clearLayers();
+    if (!isHeatmapMode) return;
+
+    requests.forEach((req) => {
+      const isCritical = req.priority_band === 'critical';
+      const isHigh = req.priority_band === 'high';
+      const color = isCritical ? '#EF4444' : isHigh ? '#F97316' : '#F59E0B';
+      const radius = 250 + req.priority_score * 2.5;
+
+      const circle = L.circle([req.latitude, req.longitude], {
+        radius,
+        color,
+        fillColor: color,
+        fillOpacity: 0.35,
+        weight: 1.5,
+      });
+
+      circle.bindTooltip(
+        `<b>${req.waste_type.toUpperCase()} Hotspot</b><br/>Score: ${Math.round(req.priority_score)}`,
+        { sticky: true }
+      );
+      heatGroup.addLayer(circle);
+    });
+  }, [requests, isHeatmapMode]);
+
   return (
     <div className="map-pane">
       <div className="map-floating-overlay">
         <span className="map-mode-badge">
-          {isDroppingPin ? '📍 Click anywhere on the map to set location' : activePlan ? '🚚 Optimized Multi-Vehicle Plan Active' : '🗺️ Dispatch Map'}
+          {isDroppingPin
+            ? '📍 Click anywhere on the map to set location'
+            : activePlan
+            ? '🚚 Optimized Multi-Vehicle Plan Active'
+            : '🗺️ Dispatch Map'}
         </span>
         <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           • {requests.length} open points {activePlan ? `• ${activePlan.routes.length} vehicle routes` : ''}
         </span>
+        <button
+          type="button"
+          onClick={() => setIsHeatmapMode(!isHeatmapMode)}
+          style={{
+            background: isHeatmapMode ? 'var(--color-critical-bg)' : 'white',
+            color: isHeatmapMode ? 'var(--color-critical)' : 'var(--text-main)',
+            border: `1.5px solid ${isHeatmapMode ? '#FCA5A5' : 'var(--border-subtle)'}`,
+            borderRadius: '8px',
+            padding: '0.25rem 0.6rem',
+            fontSize: '0.78rem',
+            fontWeight: 700,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            marginLeft: '0.5rem',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.06)',
+          }}
+        >
+          {isHeatmapMode ? '📍 Standard Pins' : '🔥 Density Heatmap'}
+        </button>
       </div>
       <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />
     </div>

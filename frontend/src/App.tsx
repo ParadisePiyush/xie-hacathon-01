@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
+  AlertTriangle,
+  BarChart3,
   FileUp,
   LogOut,
   Plus,
@@ -20,6 +22,7 @@ import type {
   Zone,
 } from './api/types';
 import { AdminPanelModal } from './components/AdminPanelModal';
+import { AnalyticsDashboardModal } from './components/AnalyticsDashboardModal';
 import { BacklogTable } from './components/BacklogTable';
 import { CollectorRouteView } from './components/CollectorRouteView';
 import { CSVImportModal } from './components/CSVImportModal';
@@ -30,6 +33,7 @@ import { RequestDetailDrawer } from './components/RequestDetailDrawer';
 import { RequestFormModal } from './components/RequestFormModal';
 import { StatsBanner } from './components/StatsBanner';
 import { useAuth } from './context/AuthContext';
+import { useRealtime } from './hooks/useRealtime';
 
 export const App: React.FC = () => {
   const { user, role, logout, isAdmin, isDispatcher } = useAuth();
@@ -53,6 +57,7 @@ export const App: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isPlanBuilderOpen, setIsPlanBuilderOpen] = useState(false);
+  const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isDroppingPin, setIsDroppingPin] = useState(false);
@@ -111,6 +116,18 @@ export const App: React.FC = () => {
     }
   }, [role]);
 
+  // Real-time live update stream (Phase 6)
+  const { isConnected, criticalAlert, dismissAlert } = useRealtime((event) => {
+    if (
+      event.event === 'REQUEST_CREATED' ||
+      event.event === 'REQUEST_TRANSITIONED' ||
+      event.event === 'PLAN_PUBLISHED' ||
+      event.event === 'STOP_COMPLETED'
+    ) {
+      loadData();
+    }
+  });
+
   // Handle map click
   const handleMapClick = (lat: number, lng: number) => {
     if (isDroppingPin) {
@@ -158,7 +175,34 @@ export const App: React.FC = () => {
         <div className="brand-section">
           <div className="brand-logo">♻️</div>
           <div>
-            <div className="brand-title">Smart Waste Collection Optimizer</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div className="brand-title">Smart Waste Collection Optimizer</div>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  fontSize: '0.68rem',
+                  fontWeight: 800,
+                  color: isConnected ? '#059669' : '#94A3B8',
+                  background: isConnected ? '#ECFDF5' : '#F1F5F9',
+                  padding: '0.12rem 0.5rem',
+                  borderRadius: '999px',
+                  border: `1px solid ${isConnected ? '#A7F3D0' : 'var(--border-subtle)'}`,
+                }}
+              >
+                <span
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: isConnected ? '#10B981' : '#CBD5E1',
+                    boxShadow: isConnected ? '0 0 6px #10B981' : 'none',
+                  }}
+                />
+                {isConnected ? 'LIVE SYNC' : 'OFFLINE'}
+              </span>
+            </div>
             <div className="brand-subtitle">Prioritized Pickup & Route Dispatch System</div>
           </div>
         </div>
@@ -221,6 +265,11 @@ export const App: React.FC = () => {
 
         {/* Topbar Actions */}
         <div className="header-actions">
+          {/* Analytics Dashboard */}
+          <button className="btn-secondary" onClick={() => setIsAnalyticsOpen(true)}>
+            <BarChart3 size={16} /> Analytics
+          </button>
+
           {isAdmin && (
             <button
               className="btn-secondary"
@@ -360,6 +409,83 @@ export const App: React.FC = () => {
         </div>
       </header>
 
+      {/* Critical Hazard Alert Emergency Re-plan Banner (Phase 6) */}
+      {criticalAlert && (
+        <div
+          style={{
+            background: 'linear-gradient(135deg, #FEF2F2 0%, #FFF1F2 100%)',
+            borderBottom: '2px solid #EF4444',
+            padding: '0.75rem 1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 4px 12px rgba(239, 68, 68, 0.12)',
+            zIndex: 1000,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: '50%',
+                background: '#EF4444',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 0 10px rgba(239, 68, 68, 0.4)',
+              }}
+            >
+              <AlertTriangle size={18} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, color: '#B91C1C', fontSize: '0.92rem' }}>
+                {criticalAlert.title}
+              </div>
+              <div style={{ fontSize: '0.8rem', color: '#7F1D1D' }}>
+                {criticalAlert.message}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              type="button"
+              className="btn-primary"
+              style={{
+                background: 'linear-gradient(135deg, #DC2626 0%, #EF4444 100%)',
+                padding: '0.35rem 0.85rem',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+              }}
+              onClick={() => {
+                setIsPlanBuilderOpen(true);
+                dismissAlert();
+              }}
+            >
+              <Sparkles size={14} /> Auto Re-plan Routes
+            </button>
+            <button
+              type="button"
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#991B1B',
+                fontSize: '1.25rem',
+                cursor: 'pointer',
+                padding: '0.2rem 0.4rem',
+                lineHeight: 1,
+              }}
+              onClick={dismissAlert}
+              title="Dismiss Alert"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* KPI Stats Banner */}
       <StatsBanner requests={requests} />
 
@@ -452,6 +578,12 @@ export const App: React.FC = () => {
       <AdminPanelModal
         isOpen={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
+      />
+
+      {/* Operations Analytics Dashboard Modal (Phase 6) */}
+      <AnalyticsDashboardModal
+        isOpen={isAnalyticsOpen}
+        onClose={() => setIsAnalyticsOpen(false)}
       />
     </div>
   );

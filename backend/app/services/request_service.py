@@ -5,6 +5,7 @@ from typing import List, Optional, Tuple
 import uuid
 
 from app.core.exceptions import BadRequestException, NotFoundException
+from app.core.websocket_manager import ws_manager
 from app.repositories.in_memory_request_repository import get_request_repository
 from app.repositories.request_repository import RequestRepository
 from app.repositories.resource_repository import get_resource_repository
@@ -20,6 +21,7 @@ from app.schemas.request import (
     Volume,
     WasteType,
 )
+from app.services.notification_service import notification_service
 from app.services.priority_service import PriorityService, priority_service
 from app.services.spatial_service import spatial_service
 from app.services.state_machine import RequestStateMachine
@@ -160,7 +162,18 @@ class RequestService:
             )
 
         # Return with history populated
-        return await self.repository.get_by_id(req_id)  # type: ignore
+        created = await self.repository.get_by_id(req_id)
+        if created:
+            await ws_manager.broadcast("REQUEST_CREATED", created.model_dump(mode="json"))
+            if created.priority_band == PriorityBand.CRITICAL or created.waste_type == WasteType.HAZARDOUS:
+                await notification_service.notify_critical_hazard(
+                    request_id=created.id,
+                    waste_type=created.waste_type.value,
+                    address=created.address or "Reported Point",
+                    latitude=created.latitude,
+                    longitude=created.longitude,
+                )
+        return created  # type: ignore
 
     async def get_request(self, request_id: str) -> PickupRequestResponse:
         req = await self.repository.get_by_id(request_id)
@@ -301,7 +314,16 @@ class RequestService:
         )
         await self.repository.add_history(history_item)
 
-        return await self.get_request(request_id)
+        final_req = await self.get_request(request_id)
+        await ws_manager.broadcast("REQUEST_TRANSITIONED", final_req.model_dump(mode="json"))
+        await notification_service.notify_status_change(
+            request_id=final_req.id,
+            from_status=existing.status.value,
+            to_status=final_req.status.value,
+            address=final_req.address,
+        )
+
+        return final_req
 
     async def cancel_request(
         self,

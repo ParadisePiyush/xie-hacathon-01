@@ -62,7 +62,20 @@ Build order: **Backend → Database → Frontend → Auth**, then optimization a
 - [x] Phase 3 – Frontend map and requests
 - [x] Phase 4 – Route optimization and dispatch
 - [x] Phase 5 – Authentication and authorization
-- [ ] Phase 6 – Real-time, analytics, production
+- [x] Phase 6 – Real-time, analytics, production
+
+---
+
+### 🔑 Demo Persona Accounts
+
+| Persona | Email | Password | Role | Capabilities |
+|---|---|---|---|---|
+| **Admin** | `admin@smartwaste.city` | `Admin@123` | `admin` | Full system access, users, audit logs, re-scoring config |
+| **Dispatcher** | `dispatcher@smartwaste.city` | `Dispatcher@123` | `dispatcher` | Review backlog, VRP planning, route assignment, dispatch |
+| **Collector** | `collector@smartwaste.city` | `Collector@123` | `collector` | View assigned route manifests, step-by-step stop completion |
+| **Citizen** | `citizen@smartwaste.city` | `Citizen@123` | `reporter` | Submit pin-drop waste requests, track status |
+
+---
 
 ## 🚀 Getting Started
 
@@ -142,6 +155,10 @@ cd frontend && npm test
 | POST | `/api/v1/plans/generate` | Generate optimized plan |
 | GET | `/api/v1/routes/mine` | Collector's route |
 | POST | `/api/v1/auth/login` | Login |
+| GET | `/api/v1/analytics/summary` | Backlog, SLA compliance, response times, distance saved |
+| GET | `/api/v1/analytics/heatmap` | Spatial cluster centroids and intensity for hotspot map |
+| GET | `/api/v1/analytics/export` | Download operational requests dataset (CSV) |
+| WS | `/ws/updates` | Live event stream (requests, transitions, critical alerts) |
 
 Example:
 ```bash

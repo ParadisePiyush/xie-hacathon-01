@@ -3,6 +3,7 @@ from typing import List, Optional
 import uuid
 
 from app.core.exceptions import BadRequestException, NotFoundException
+from app.core.websocket_manager import ws_manager
 from app.optimizer.distance_matrix import distance_matrix_service
 from app.optimizer.vrp_solver import VRPOptimizer
 from app.repositories.plan_repository import InMemoryPlanRepository, get_plan_repository
@@ -189,6 +190,7 @@ class PlanningService:
         updated = await self.plan_repo.update_plan_status(plan_id, PlanStatus.PUBLISHED.value)
         if not updated:
             raise NotFoundException(message=f"Plan '{plan_id}' not found")
+        await ws_manager.broadcast("PLAN_PUBLISHED", updated.model_dump(mode="json"))
         return updated
 
     async def complete_route_stop(
@@ -247,6 +249,7 @@ class PlanningService:
             except Exception:
                 pass
 
+        await ws_manager.broadcast("STOP_COMPLETED", updated_stop.model_dump(mode="json"))
         return updated_stop  # type: ignore
 
     async def get_my_route(self, vehicle_id: Optional[str] = None) -> RouteResponse:

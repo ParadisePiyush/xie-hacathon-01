@@ -228,3 +228,47 @@ export interface AuditLog {
   created_at: string;
 }
 
+// Phase 6 Analytics & Realtime
+export interface AnalyticsSummary {
+  total_requests: number;
+  open_backlog: number;
+  collected_requests: number;
+  sla_compliance_pct: number;
+  avg_response_time_minutes: number;
+  estimated_km_saved: number;
+  efficiency_gain_pct: number;
+  status_distribution: Record<string, number>;
+  priority_distribution: Record<string, number>;
+  waste_type_distribution: Record<string, number>;
+  total_active_plans: number;
+}
+
+export interface HeatmapPoint {
+  latitude: number;
+  longitude: number;
+  intensity: number;
+  request_count: number;
+  avg_priority_score: number;
+  dominant_waste_type: string;
+}
+
+export interface TeamProductivity {
+  team_id: string;
+  team_name: string;
+  stops_completed: number;
+  stops_scheduled: number;
+  total_distance_km: number;
+  total_drive_time_minutes: number;
+  active_vehicles: number;
+}
+
+export interface SystemNotification {
+  id: string;
+  channel: string;
+  recipient: string;
+  title: string;
+  message: string;
+  request_id?: string | null;
+  created_at: string;
+}
+

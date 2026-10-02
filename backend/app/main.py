@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -9,12 +9,21 @@ from app.api.v1.router import api_v1_router
 from app.core.config import settings
 from app.core.exceptions import AppException
 from app.core.logging import logger
+from app.core.websocket_manager import ws_manager
+from app.db.seed import seed_data
+from app.repositories.resource_repository import resource_repository
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("Starting up %s API...", settings.PROJECT_NAME)
-    logger.info("Phase 1: In-Memory Repository active")
+    depots = await resource_repository.list_depots()
+    if not depots:
+        logger.info("Seeding initial resources and requests...")
+        try:
+            await seed_data()
+        except Exception as e:
+            logger.warning("Error during auto-seed: %s", e)
     yield
     logger.info("Shutting down %s API...", settings.PROJECT_NAME)
 
@@ -150,6 +159,22 @@ app.include_router(health_router)
 
 # Versioned API routes (/api/v1)
 app.include_router(api_v1_router, prefix=settings.API_V1_STR)
+
+
+# Real-Time WebSocket endpoint (Phase 6)
+@app.websocket("/ws/updates")
+@app.websocket(f"{settings.API_V1_STR}/ws/updates")
+async def websocket_updates_endpoint(websocket: WebSocket):
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            data = await websocket.receive_text()
+            if data == "ping":
+                await websocket.send_text("pong")
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
+    except Exception:
+        ws_manager.disconnect(websocket)
 
 
 if __name__ == "__main__":
