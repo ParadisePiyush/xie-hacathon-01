@@ -117,3 +117,64 @@ export interface PriorityConfig {
   hazard_scores: Record<string, number>;
   volume_scores: Record<string, number>;
 }
+
+export interface Vehicle {
+  id: string;
+  team_id?: string | null;
+  plate: string;
+  capacity_units: number;
+  shift_start: string;
+  shift_end: string;
+  is_active: boolean;
+  created_at: string;
+  team_name?: string | null;
+}
+
+export interface RouteStop {
+  id: string;
+  route_id: string;
+  request_id: string;
+  sequence: number;
+  eta?: string | null;
+  outcome?: string | null; // collected, skipped
+  outcome_reason?: string | null;
+  proof_photo_url?: string | null;
+  completed_at?: string | null;
+  request: PickupRequest;
+}
+
+export interface Route {
+  id: string;
+  plan_id: string;
+  vehicle_id: string;
+  vehicle_plate: string;
+  distance_m: number;
+  duration_s: number;
+  polyline?: string | null;
+  stops: RouteStop[];
+}
+
+export interface Plan {
+  id: string;
+  plan_date: string;
+  status: string;
+  total_distance_m: number;
+  total_duration_s: number;
+  routes: Route[];
+  unserved_request_ids: string[];
+  created_at: string;
+}
+
+export interface PlanGenerateRequest {
+  plan_date?: string;
+  vehicle_ids?: string[];
+  team_ids?: string[];
+  request_ids?: string[];
+  depot_id?: string;
+}
+
+export interface RouteStopCompleteRequest {
+  outcome: 'collected' | 'skipped';
+  reason?: string;
+  proof_photo_url?: string;
+}

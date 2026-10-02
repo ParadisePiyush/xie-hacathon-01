@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
-import type { Depot, PickupRequest, Zone } from '../api/types';
+import type { Depot, PickupRequest, Plan, Zone } from '../api/types';
 
 interface MapProps {
   requests: PickupRequest[];
   depots: Depot[];
   zones: Zone[];
+  activePlan?: Plan | null;
   selectedRequest: PickupRequest | null;
   onSelectRequest: (req: PickupRequest) => void;
   isDroppingPin: boolean;
@@ -13,10 +14,20 @@ interface MapProps {
   onMapClick: (lat: number, lng: number) => void;
 }
 
+const ROUTE_COLORS = [
+  '#4F46E5', // Electric Indigo
+  '#06B6D4', // Cyan
+  '#10B981', // Emerald
+  '#F97316', // Orange
+  '#8B5CF6', // Purple
+  '#EC4899', // Pink
+];
+
 export const Map: React.FC<MapProps> = ({
   requests,
   depots,
   zones,
+  activePlan,
   selectedRequest,
   onSelectRequest,
   isDroppingPin,
@@ -26,13 +37,13 @@ export const Map: React.FC<MapProps> = ({
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
+  const routesLayerRef = useRef<L.LayerGroup | null>(null);
   const droppedPinMarkerRef = useRef<L.Marker | null>(null);
 
   // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
-    // Default center (e.g., around 19.9975, 73.7898 or first request/depot)
     const map = L.map(mapContainerRef.current, {
       center: [19.9975, 73.7898],
       zoom: 13,
@@ -44,11 +55,12 @@ export const Map: React.FC<MapProps> = ({
       attribution: '© OpenStreetMap contributors',
     }).addTo(map);
 
-    const layerGroup = L.layerGroup().addTo(map);
-    markersLayerRef.current = layerGroup;
+    const routesGroup = L.layerGroup().addTo(map);
+    const markersGroup = L.layerGroup().addTo(map);
+    routesLayerRef.current = routesGroup;
+    markersLayerRef.current = markersGroup;
     mapInstanceRef.current = map;
 
-    // Map click handler for pin drop
     map.on('click', (e: L.LeafletMouseEvent) => {
       onMapClick(e.latlng.lat, e.latlng.lng);
     });
@@ -87,7 +99,81 @@ export const Map: React.FC<MapProps> = ({
     };
   }, [zones]);
 
-  // Update Request & Depot Markers
+  // Update Routes Polyline & Stop Numbers from active plan
+  useEffect(() => {
+    const routesGroup = routesLayerRef.current;
+    if (!routesGroup) return;
+
+    routesGroup.clearLayers();
+    if (!activePlan || !activePlan.routes || activePlan.routes.length === 0) return;
+
+    // Depot coordinate
+    const depotLat = depots.length > 0 ? depots[0].latitude : 19.9975;
+    const depotLng = depots.length > 0 ? depots[0].longitude : 73.7898;
+
+    activePlan.routes.forEach((route, idx) => {
+      const color = ROUTE_COLORS[idx % ROUTE_COLORS.length];
+      if (!route.stops || route.stops.length === 0) return;
+
+      // Construct points: depot -> stop 1 -> ... -> stop N -> depot
+      const polylinePoints: [number, number][] = [
+        [depotLat, depotLng],
+        ...route.stops.map((s) => [s.request.latitude, s.request.longitude] as [number, number]),
+        [depotLat, depotLng],
+      ];
+
+      // Draw Route Polyline
+      const line = L.polyline(polylinePoints, {
+        color,
+        weight: 5,
+        opacity: 0.85,
+        dashArray: undefined,
+        lineCap: 'round',
+        lineJoin: 'round',
+      });
+      line.bindTooltip(
+        `<b>Vehicle: ${route.vehicle_plate}</b><br/>Stops: ${route.stops.length} • Distance: ${(route.distance_m / 1000).toFixed(1)} km`,
+        { sticky: true }
+      );
+      routesGroup.addLayer(line);
+
+      // Draw Numbered Sequence Badges along route
+      route.stops.forEach((stop) => {
+        const seqIcon = L.divIcon({
+          className: 'route-sequence-badge',
+          html: `<div style="
+            background: ${color};
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 0.85rem;
+            border: 2.5px solid white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+            cursor: pointer;
+          ">${stop.sequence}</div>`,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16],
+        });
+
+        const marker = L.marker([stop.request.latitude, stop.request.longitude], { icon: seqIcon });
+        marker.on('click', () => {
+          onSelectRequest(stop.request);
+        });
+        marker.bindTooltip(
+          `<b>Stop #${stop.sequence} (${route.vehicle_plate})</b><br/>${stop.request.waste_type.toUpperCase()} • ${stop.request.volume}<br/>ETA: ${stop.eta ? new Date(stop.eta).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Pending'}`,
+          { direction: 'top', offset: [0, -15] }
+        );
+        routesGroup.addLayer(marker);
+      });
+    });
+  }, [activePlan, depots]);
+
+  // Update Request & Depot Markers (for requests not on active plan or overall layer)
   useEffect(() => {
     const layerGroup = markersLayerRef.current;
     if (!layerGroup) return;
@@ -99,8 +185,8 @@ export const Map: React.FC<MapProps> = ({
       const depotIcon = L.divIcon({
         className: 'depot-map-pin',
         html: `<span>🏢</span>`,
-        iconSize: [34, 34],
-        iconAnchor: [17, 17],
+        iconSize: [36, 36],
+        iconAnchor: [18, 18],
       });
 
       const marker = L.marker([depot.latitude, depot.longitude], { icon: depotIcon });
@@ -108,8 +194,16 @@ export const Map: React.FC<MapProps> = ({
       layerGroup.addLayer(marker);
     });
 
-    // 2. Pickup Requests
+    // 2. Pickup Requests (if no active plan, or for requests not planned)
+    const plannedRequestIds = new Set<string>();
+    if (activePlan) {
+      activePlan.routes.forEach((r) => r.stops.forEach((s) => plannedRequestIds.add(s.request_id)));
+    }
+
     requests.forEach((req) => {
+      // If stop is drawn with sequence number in route layer, skip drawing regular pin to prevent duplicate overlap
+      if (plannedRequestIds.has(req.id)) return;
+
       const band = req.priority_band || 'low';
       const icon = L.divIcon({
         className: `custom-map-pin ${band}`,
@@ -130,7 +224,7 @@ export const Map: React.FC<MapProps> = ({
 
       layerGroup.addLayer(marker);
     });
-  }, [requests, depots]);
+  }, [requests, depots, activePlan]);
 
   // Handle Selected Request Map Pan
   useEffect(() => {
@@ -171,10 +265,10 @@ export const Map: React.FC<MapProps> = ({
     <div className="map-pane">
       <div className="map-floating-overlay">
         <span className="map-mode-badge">
-          {isDroppingPin ? '📍 Click anywhere on the map to set location' : '🗺️ Interactive Dispatch Map'}
+          {isDroppingPin ? '📍 Click anywhere on the map to set location' : activePlan ? '🚚 Optimized Multi-Vehicle Plan Active' : '🗺️ Dispatch Map'}
         </span>
         <span style={{ color: '#64748B', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          • {requests.length} open points
+          • {requests.length} open points {activePlan ? `• ${activePlan.routes.length} vehicle routes` : ''}
         </span>
       </div>
       <div ref={mapContainerRef} style={{ height: '100%', width: '100%' }} />

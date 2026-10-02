@@ -4,7 +4,13 @@ import type {
   PickupRequest,
   PickupRequestCreate,
   PickupRequestTransition,
+  Plan,
+  PlanGenerateRequest,
   PriorityConfig,
+  Route,
+  RouteStop,
+  RouteStopCompleteRequest,
+  Vehicle,
   Zone,
 } from './types';
 
@@ -128,6 +134,46 @@ export const apiClient = {
     return request('/requests/import', {
       method: 'POST',
       body: formData,
+    });
+  },
+
+  // Vehicles
+  async getVehicles(teamId?: string): Promise<Vehicle[]> {
+    const q = teamId ? `?team_id=${teamId}` : '';
+    return request<Vehicle[]>(`/vehicles${q}`);
+  },
+
+  // Planning & Optimization (Phase 4)
+  async generatePlan(payload: PlanGenerateRequest = {}): Promise<Plan> {
+    return request<Plan>('/plans/generate', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async getPlans(): Promise<Plan[]> {
+    return request<Plan[]>('/plans');
+  },
+
+  async getPlanById(id: string): Promise<Plan> {
+    return request<Plan>(`/plans/${id}`);
+  },
+
+  async publishPlan(id: string): Promise<Plan> {
+    return request<Plan>(`/plans/${id}/publish`, {
+      method: 'POST',
+    });
+  },
+
+  async getMyRoute(vehicleId?: string): Promise<Route> {
+    const q = vehicleId ? `?vehicle_id=${vehicleId}` : '';
+    return request<Route>(`/routes/mine${q}`);
+  },
+
+  async completeRouteStop(stopId: string, payload: RouteStopCompleteRequest): Promise<RouteStop> {
+    return request<RouteStop>(`/route-stops/${stopId}/complete`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
     });
   },
 };

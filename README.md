@@ -60,7 +60,7 @@ Build order: **Backend → Database → Frontend → Auth**, then optimization a
 - [x] Phase 1 – Backend foundation
 - [x] Phase 2 – Database and geospatial
 - [x] Phase 3 – Frontend map and requests
-- [ ] Phase 4 – Route optimization and dispatch
+- [x] Phase 4 – Route optimization and dispatch
 - [ ] Phase 5 – Authentication and authorization
 - [ ] Phase 6 – Real-time, analytics, production
 
