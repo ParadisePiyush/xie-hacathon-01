@@ -8,6 +8,7 @@ from app.api.v1.health import router as health_router
 from app.api.v1.plans import router as plans_router
 from app.api.v1.requests import router as requests_router
 from app.api.v1.teams import router as teams_router
+from app.api.v1.users import router as users_router
 from app.api.v1.vehicles import router as vehicles_router
 from app.api.v1.zones import router as zones_router
 
@@ -26,7 +27,12 @@ api_v1_router.include_router(zones_router)
 api_v1_router.include_router(teams_router)
 api_v1_router.include_router(vehicles_router)
 
-# Future Phase Routers
+# Phase 4 Planning & Routing
 api_v1_router.include_router(plans_router)
+
+# Phase 5 Auth & RBAC
 api_v1_router.include_router(auth_router)
+api_v1_router.include_router(users_router)
+
+# Phase 6 Analytics
 api_v1_router.include_router(analytics_router)

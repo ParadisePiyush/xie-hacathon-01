@@ -1,5 +1,8 @@
 import type {
+  AuditLog,
+  AuthResponse,
   Depot,
+  LoginCredentials,
   PaginatedResponse,
   PickupRequest,
   PickupRequestCreate,
@@ -7,9 +10,11 @@ import type {
   Plan,
   PlanGenerateRequest,
   PriorityConfig,
+  RegisterCredentials,
   Route,
   RouteStop,
   RouteStopCompleteRequest,
+  User,
   Vehicle,
   Zone,
 } from './types';
@@ -19,6 +24,11 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
 async function request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE}${endpoint}`;
   const headers = new Headers(options.headers || {});
+
+  const token = localStorage.getItem('access_token');
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
 
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
@@ -175,5 +185,73 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify(payload),
     });
+  },
+
+  // Auth & RBAC (Phase 5)
+  async login(credentials: LoginCredentials): Promise<AuthResponse> {
+    const data = await request<AuthResponse>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('refresh_token', data.refresh_token);
+    return data;
+  },
+
+  async register(credentials: RegisterCredentials): Promise<AuthResponse> {
+    const data = await request<AuthResponse>('/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(credentials),
+    });
+    localStorage.setItem('access_token', data.access_token);
+    localStorage.setItem('refresh_token', data.refresh_token);
+    return data;
+  },
+
+  async logout(): Promise<void> {
+    try {
+      await request('/auth/logout', { method: 'POST' });
+    } catch {
+      // Ignore network errors on logout
+    } finally {
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+    }
+  },
+
+  async getMe(): Promise<User> {
+    return request<User>('/auth/me');
+  },
+
+  // User Management (Admin)
+  async getUsers(role?: string, teamId?: string): Promise<User[]> {
+    const q = new URLSearchParams();
+    if (role) q.set('role', role);
+    if (teamId) q.set('team_id', teamId);
+    return request<User[]>(`/users?${q.toString()}`);
+  },
+
+  async createUser(payload: any): Promise<User> {
+    return request<User>('/users', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async updateUser(id: string, payload: any): Promise<User> {
+    return request<User>(`/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  async deactivateUser(id: string): Promise<void> {
+    return request<void>(`/users/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
+  async getAuditLogs(limit = 100): Promise<AuditLog[]> {
+    return request<AuditLog[]>(`/audit-logs?limit=${limit}`);
   },
 };

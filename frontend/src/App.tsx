@@ -1,5 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { FileUp, Plus, Sparkles, TableProperties, Truck } from 'lucide-react';
+import {
+  FileUp,
+  LogOut,
+  Plus,
+  Shield,
+  Sparkles,
+  TableProperties,
+  Truck,
+  User as UserIcon,
+} from 'lucide-react';
 import { apiClient } from './api/client';
 import type {
   Depot,
@@ -10,16 +19,21 @@ import type {
   WasteType,
   Zone,
 } from './api/types';
+import { AdminPanelModal } from './components/AdminPanelModal';
 import { BacklogTable } from './components/BacklogTable';
 import { CollectorRouteView } from './components/CollectorRouteView';
 import { CSVImportModal } from './components/CSVImportModal';
+import { LoginModal } from './components/LoginModal';
 import { Map } from './components/Map';
 import { PlanBuilderModal } from './components/PlanBuilderModal';
 import { RequestDetailDrawer } from './components/RequestDetailDrawer';
 import { RequestFormModal } from './components/RequestFormModal';
 import { StatsBanner } from './components/StatsBanner';
+import { useAuth } from './context/AuthContext';
 
 export const App: React.FC = () => {
+  const { user, role, logout, isAdmin, isDispatcher } = useAuth();
+
   // Navigation / View state
   const [viewMode, setViewMode] = useState<'dispatcher' | 'collector'>('dispatcher');
 
@@ -39,6 +53,8 @@ export const App: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isPlanBuilderOpen, setIsPlanBuilderOpen] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isDroppingPin, setIsDroppingPin] = useState(false);
   const [pinnedCoords, setPinnedCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -85,6 +101,15 @@ export const App: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [selectedStatus, selectedType, selectedBand, searchQuery]);
+
+  // Adapt view mode based on active user role
+  useEffect(() => {
+    if (role === 'collector') {
+      setViewMode('collector');
+    } else if (role === 'dispatcher' || role === 'admin') {
+      setViewMode('dispatcher');
+    }
+  }, [role]);
 
   // Handle map click
   const handleMapClick = (lat: number, lng: number) => {
@@ -196,21 +221,40 @@ export const App: React.FC = () => {
 
         {/* Topbar Actions */}
         <div className="header-actions">
-          <button
-            className="btn-secondary"
-            onClick={() => setIsPlanBuilderOpen(true)}
-            style={{
-              border: '1.5px solid #C7D2FE',
-              background: activePlan ? 'var(--primary-light)' : undefined,
-              color: activePlan ? 'var(--primary)' : undefined,
-            }}
-          >
-            <Sparkles size={16} /> {activePlan ? 'Routes Planned' : 'Optimize Routes'}
-          </button>
+          {isAdmin && (
+            <button
+              className="btn-secondary"
+              onClick={() => setIsAdminOpen(true)}
+              style={{
+                border: '1.5px solid #C7D2FE',
+                background: 'var(--primary-light)',
+                color: 'var(--primary)',
+                fontWeight: 700,
+              }}
+            >
+              <Shield size={16} /> Admin Console
+            </button>
+          )}
 
-          <button className="btn-secondary" onClick={() => setIsImportOpen(true)}>
-            <FileUp size={16} /> Import CSV
-          </button>
+          {(isDispatcher || isAdmin) && (
+            <button
+              className="btn-secondary"
+              onClick={() => setIsPlanBuilderOpen(true)}
+              style={{
+                border: '1.5px solid #C7D2FE',
+                background: activePlan ? 'var(--primary-light)' : undefined,
+                color: activePlan ? 'var(--primary)' : undefined,
+              }}
+            >
+              <Sparkles size={16} /> {activePlan ? 'Routes Planned' : 'Optimize Routes'}
+            </button>
+          )}
+
+          {(isDispatcher || isAdmin) && (
+            <button className="btn-secondary" onClick={() => setIsImportOpen(true)}>
+              <FileUp size={16} /> Import CSV
+            </button>
+          )}
 
           <button
             className="btn-primary"
@@ -221,6 +265,98 @@ export const App: React.FC = () => {
           >
             <Plus size={18} /> Report Waste Pin
           </button>
+
+          {/* User Profile & Role Switcher */}
+          {user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  padding: '0.35rem 0.65rem',
+                  background: 'var(--bg-subtle)',
+                  borderRadius: '10px',
+                  border: '1px solid var(--border-subtle)',
+                  cursor: 'pointer',
+                }}
+                onClick={() => setIsLoginOpen(true)}
+                title="Click to Switch Persona or Role"
+              >
+                <div
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    background:
+                      role === 'admin'
+                        ? 'var(--primary)'
+                        : role === 'collector'
+                        ? '#059669'
+                        : role === 'dispatcher'
+                        ? '#0284C7'
+                        : '#D97706',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.72rem',
+                    fontWeight: 800,
+                  }}
+                >
+                  {user.full_name[0]}
+                </div>
+                <span style={{ fontSize: '0.82rem', fontWeight: 700 }}>
+                  {user.full_name.split(' ')[0]}
+                </span>
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    fontWeight: 800,
+                    textTransform: 'uppercase',
+                    padding: '0.12rem 0.4rem',
+                    borderRadius: '5px',
+                    background:
+                      role === 'admin'
+                        ? 'var(--primary-light)'
+                        : role === 'collector'
+                        ? 'var(--color-low-bg)'
+                        : role === 'dispatcher'
+                        ? '#F0F9FF'
+                        : 'var(--color-medium-bg)',
+                    color:
+                      role === 'admin'
+                        ? 'var(--primary)'
+                        : role === 'collector'
+                        ? '#047857'
+                        : role === 'dispatcher'
+                        ? '#0369A1'
+                        : '#B45309',
+                  }}
+                >
+                  {role}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={logout}
+                title="Sign Out"
+                style={{ color: 'var(--text-light)' }}
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setIsLoginOpen(true)}
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+            >
+              <UserIcon size={16} /> Sign In / Roles
+            </button>
+          )}
         </div>
       </header>
 
@@ -304,6 +440,18 @@ export const App: React.FC = () => {
         openRequestsCount={
           requests.filter((r) => ['pending', 'triaged', 'scheduled'].includes(r.status)).length
         }
+      />
+
+      {/* Sign In & Persona Selector Modal */}
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+      />
+
+      {/* Admin Operations & Audit Panel */}
+      <AdminPanelModal
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
       />
     </div>
   );

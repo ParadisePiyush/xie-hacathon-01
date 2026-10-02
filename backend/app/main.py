@@ -88,6 +88,15 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
 
 
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    return response
+
+
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     code = "HTTP_ERROR"
@@ -99,9 +108,12 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         code = "UNAUTHORIZED"
     elif exc.status_code == 403:
         code = "FORBIDDEN"
+    elif exc.status_code == 429:
+        code = "RATE_LIMITED"
 
     return JSONResponse(
         status_code=exc.status_code,
+        headers=exc.headers,
         content={
             "error": {
                 "code": code,
