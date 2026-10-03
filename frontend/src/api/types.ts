@@ -272,3 +272,37 @@ export interface SystemNotification {
   created_at: string;
 }
 
+// AI Assistant & Gemini Chat types
+export interface ChatMessage {
+  id?: string;
+  role: 'user' | 'model' | 'assistant';
+  content: string;
+  timestamp?: string;
+  model?: string;
+}
+
+export interface ChatRequest {
+  message: string;
+  history?: ChatMessage[];
+}
+
+export interface ChatResponse {
+  reply: string;
+  suggestions: string[];
+  model: string;
+}
+
+// Geoapify Geocoding & Search types
+export interface GeoapifyAddressResult {
+  formatted: string;
+  address_line1?: string;
+  address_line2?: string;
+  city?: string;
+  state?: string;
+  postcode?: string;
+  country?: string;
+  lat: number;
+  lon: number;
+}
+
+

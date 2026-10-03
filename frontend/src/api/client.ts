@@ -21,6 +21,8 @@ import type {
   User,
   Vehicle,
   Zone,
+  ChatResponse,
+  GeoapifyAddressResult,
 } from './types';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -279,4 +281,70 @@ export const apiClient = {
   getExportUrl(): string {
     return `${API_BASE}/analytics/export`;
   },
+
+  // AI Assistant Chatbot (Gemini)
+  async sendChatMessage(
+    message: string,
+    history?: { role: string; content: string }[]
+  ): Promise<ChatResponse> {
+    return request<ChatResponse>('/chat/message', {
+      method: 'POST',
+      body: JSON.stringify({ message, history }),
+    });
+  },
+
+  async getChatSuggestions(): Promise<string[]> {
+    return request<string[]>('/chat/suggestions');
+  },
+
+  // Geoapify Maps & Geocoding Services
+  async reverseGeocode(lat: number, lng: number): Promise<string> {
+    const key = import.meta.env.VITE_GEOAPIFY_API_KEY || '';
+    if (!key) return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    try {
+      const res = await fetch(
+        `https://api.geoapify.com/v1/geocode/reverse?lat=${lat}&lon=${lng}&apiKey=${key}`
+      );
+      if (!res.ok) throw new Error('Failed to reverse geocode');
+      const data = await res.json();
+      const features = data?.features;
+      if (features && features.length > 0) {
+        return features[0]?.properties?.formatted || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      }
+      return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    } catch (err) {
+      console.warn('Geoapify reverse geocode failed:', err);
+      return `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    }
+  },
+
+  async autocompleteAddress(text: string): Promise<GeoapifyAddressResult[]> {
+    if (!text || text.trim().length < 2) return [];
+    const key = import.meta.env.VITE_GEOAPIFY_API_KEY || '';
+    if (!key) return [];
+    try {
+      const encoded = encodeURIComponent(text.trim());
+      const res = await fetch(
+        `https://api.geoapify.com/v1/geocode/autocomplete?text=${encoded}&apiKey=${key}&limit=6`
+      );
+      if (!res.ok) return [];
+      const data = await res.json();
+      const features = data?.features || [];
+      return features.map((f: any) => ({
+        formatted: f.properties?.formatted || '',
+        address_line1: f.properties?.address_line1,
+        address_line2: f.properties?.address_line2,
+        city: f.properties?.city,
+        state: f.properties?.state,
+        postcode: f.properties?.postcode,
+        country: f.properties?.country,
+        lat: f.properties?.lat,
+        lon: f.properties?.lon,
+      }));
+    } catch (err) {
+      console.warn('Geoapify autocomplete failed:', err);
+      return [];
+    }
+  },
 };
+

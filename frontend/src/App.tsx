@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   BarChart3,
+  Bot,
   FileUp,
   LogOut,
   Plus,
@@ -26,6 +27,7 @@ import { AnalyticsDashboardModal } from './components/AnalyticsDashboardModal';
 import { BacklogTable } from './components/BacklogTable';
 import { CollectorRouteView } from './components/CollectorRouteView';
 import { CSVImportModal } from './components/CSVImportModal';
+import { ChatbotModal } from './components/ChatbotModal';
 import { LoginModal } from './components/LoginModal';
 import { Map } from './components/Map';
 import { PlanBuilderModal } from './components/PlanBuilderModal';
@@ -58,6 +60,7 @@ export const App: React.FC = () => {
   const [isImportOpen, setIsImportOpen] = useState(false);
   const [isPlanBuilderOpen, setIsPlanBuilderOpen] = useState(false);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
   const [isDroppingPin, setIsDroppingPin] = useState(false);
@@ -304,6 +307,20 @@ export const App: React.FC = () => {
               <FileUp size={16} /> Import CSV
             </button>
           )}
+
+          {/* EcoBot AI Assistant button in header */}
+          <button
+            className="btn-secondary"
+            onClick={() => setIsChatOpen(true)}
+            style={{
+              border: '1.5px solid #A5B4FC',
+              background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
+              color: '#4338CA',
+              fontWeight: 700,
+            }}
+          >
+            <Bot size={16} /> EcoBot AI
+          </button>
 
           <button
             className="btn-primary"
@@ -584,6 +601,37 @@ export const App: React.FC = () => {
       <AnalyticsDashboardModal
         isOpen={isAnalyticsOpen}
         onClose={() => setIsAnalyticsOpen(false)}
+      />
+
+      {/* Floating EcoBot AI Launcher */}
+      {!isChatOpen && (
+        <button
+          className="ecobot-launcher-btn"
+          onClick={() => setIsChatOpen(true)}
+          title="Ask EcoBot AI Assistant"
+        >
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+            <Bot size={20} />
+            <span className="ecobot-pulse-dot" style={{ position: 'absolute', top: -3, right: -4 }} />
+          </div>
+          <span style={{ fontWeight: 700, fontSize: '0.86rem', letterSpacing: '0.01em' }}>
+            Ask EcoBot AI
+          </span>
+        </button>
+      )}
+
+      {/* AI Municipal Assistant Chatbot */}
+      <ChatbotModal
+        isOpen={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        onRequestPinDrop={() => {
+          setIsChatOpen(false);
+          setIsDroppingPin(true);
+        }}
+        onOpenReportModal={() => {
+          setIsChatOpen(false);
+          setIsFormOpen(true);
+        }}
       />
     </div>
   );

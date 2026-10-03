@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.analytics import router as analytics_router
 from app.api.v1.auth import router as auth_router
+from app.api.v1.chat import router as chat_router
 from app.api.v1.config import router as config_router
 from app.api.v1.depots import router as depots_router
 from app.api.v1.health import router as health_router
@@ -36,3 +37,7 @@ api_v1_router.include_router(users_router)
 
 # Phase 6 Analytics
 api_v1_router.include_router(analytics_router)
+
+# AI Chatbot Assistant (Gemini)
+api_v1_router.include_router(chat_router)
+

@@ -32,7 +32,10 @@ venv.bak/
 
 # Environment variables
 .env
+.env.*
+*.env
 !.env.example
+!*/.env.example
 
 # Pytest / Coverage
 .pytest_cache/

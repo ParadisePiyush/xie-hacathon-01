@@ -31,6 +31,11 @@ class Settings(BaseSettings):
     OSRM_URL: str = "https://router.project-osrm.org"
     SOLVER_TIME_LIMIT_SECONDS: int = 20
 
+    # External APIs (Geoapify & Gemini AI)
+    GEMINI_API_KEY: str = ""
+    GEOAPIFY_API_KEY: str = ""
+
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
